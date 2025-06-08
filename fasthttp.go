@@ -1,0 +1,27 @@
+package proxmox
+
+import (
+	"time"
+
+	"github.com/valyala/fasthttp"
+)
+
+func getDefaultFastHTTPClient() *fasthttp.Client {
+	return &fasthttp.Client{
+		ReadTimeout:  30 * time.Second,
+		WriteTimeout: 10 * time.Second,
+
+		MaxIdleConnDuration: 90 * time.Second,
+		MaxConnDuration:     300 * time.Second,
+		MaxConnsPerHost:     10,
+
+		ReadBufferSize:      4096,
+		WriteBufferSize:     4096,
+		MaxResponseBodySize: 10 << 20,
+
+		TLSConfig: nil,
+
+		DisableHeaderNamesNormalizing: false,
+		DisablePathNormalizing:        false,
+	}
+}
