@@ -1,0 +1,24 @@
+# Codecov configuration
+coverage:
+  status:
+    project:
+      default:
+        target: 80%
+        threshold: 2%
+        if_no_uploads: error
+    patch:
+      default:
+        target: 75%
+        threshold: 5%
+        if_no_uploads: error
+
+comment:
+  layout: "reach,diff,flags,tree"
+  behavior: default
+  require_changes: false
+
+ignore:
+  - "**/*_test.go"
+  - "**/testdata/**"
+  - "**/examples/**"
+  - "**/vendor/**"

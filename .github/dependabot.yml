@@ -1,0 +1,45 @@
+version: 2
+updates:
+  # Update GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Etc/UTC"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "yothgewalt"
+    assignees:
+      - "yothgewalt"
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+
+  # Update Go modules
+  - package-ecosystem: "gomod"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Etc/UTC"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "yothgewalt"
+    assignees:
+      - "yothgewalt"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    groups:
+      major-updates:
+        applies-to: version-updates
+        update-types:
+          - "major"
+      minor-and-patch:
+        applies-to: version-updates
+        update-types:
+          - "minor"
+          - "patch"
