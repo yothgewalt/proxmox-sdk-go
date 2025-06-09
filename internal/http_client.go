@@ -7,6 +7,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/bytedance/sonic"
 	"github.com/valyala/fasthttp"
 )
 
@@ -36,6 +37,50 @@ type Response struct {
 	Body       []byte
 	Headers    map[string]string
 	Error      error
+}
+
+// TypedRequest represents a generic request with typed data
+type TypedRequest[T any] struct {
+	Method  RequestMethod
+	URL     string
+	Headers map[string]string
+	Data    T
+	Timeout time.Duration
+}
+
+// TypedResponse represents a generic response with typed data
+type TypedResponse[T any] struct {
+	StatusCode int
+	Data       T
+	Headers    map[string]string
+	RawBody    []byte
+	Error      error
+}
+
+// RequestEncoder defines how to encode request data
+type RequestEncoder[T any] interface {
+	Encode(data T) ([]byte, error)
+}
+
+// ResponseDecoder defines how to decode response data
+type ResponseDecoder[T any] interface {
+	Decode(body []byte) (T, error)
+}
+
+// JSONRequestEncoder implements JSON encoding for requests using sonic
+type JSONRequestEncoder[T any] struct{}
+
+func (e JSONRequestEncoder[T]) Encode(data T) ([]byte, error) {
+	return sonic.Marshal(data)
+}
+
+// JSONResponseDecoder implements JSON decoding for responses using sonic
+type JSONResponseDecoder[T any] struct{}
+
+func (d JSONResponseDecoder[T]) Decode(body []byte) (T, error) {
+	var result T
+	err := sonic.Unmarshal(body, &result)
+	return result, err
 }
 
 type HttpInstnace struct {
@@ -397,4 +442,204 @@ func (h *HttpInstnace) GetMemoryStats() map[string]interface{} {
 		"base_endpoint_path": h.GetBaseEndpointPath(),
 		"buffer_manager":     "RequestBufferManager initialized",
 	}
+}
+
+// MakeTypedRequest performs a typed HTTP request with automatic encoding/decoding
+func MakeTypedRequest[Req, Resp any](
+	httpInstance *HttpInstnace,
+	config TypedRequest[Req],
+	encoder RequestEncoder[Req],
+	decoder ResponseDecoder[Resp],
+) *TypedResponse[Resp] {
+	atomic.AddInt64(&httpInstance.requestCounter, 1)
+
+	responseChan := make(chan *TypedResponse[Resp], 1)
+
+	err := httpInstance.workerPool.Submit(func() {
+		req := httpInstance.requestPool.Get().(*fasthttp.Request)
+		resp := httpInstance.responsePool.Get().(*fasthttp.Response)
+
+		defer func() {
+			req.Reset()
+			httpInstance.requestPool.Put(req)
+			resp.Reset()
+			httpInstance.responsePool.Put(resp)
+		}()
+
+		var body []byte
+		var encodeErr error
+		if encoder != nil {
+			body, encodeErr = encoder.Encode(config.Data)
+			if encodeErr != nil {
+				responseChan <- &TypedResponse[Resp]{
+					Error: encodeErr,
+				}
+				return
+			}
+		}
+
+		fullURL := httpInstance.buildFullURL(config.URL)
+		req.SetRequestURI(fullURL)
+		req.Header.SetMethod(string(config.Method))
+
+		for key, value := range config.Headers {
+			req.Header.Set(key, value)
+		}
+
+		if len(body) > 0 {
+			req.SetBody(body)
+		}
+
+		var timeout time.Duration
+		if config.Timeout > 0 {
+			timeout = config.Timeout
+		} else {
+			timeout = 30 * time.Second
+		}
+
+		httpErr := httpInstance.HttpClient.DoTimeout(req, resp, timeout)
+
+		response := &TypedResponse[Resp]{
+			StatusCode: resp.StatusCode(),
+			Error:      httpErr,
+		}
+
+		if resp.Body() != nil {
+			response.RawBody = make([]byte, len(resp.Body()))
+			copy(response.RawBody, resp.Body())
+
+			if decoder != nil && httpErr == nil {
+				data, decodeErr := decoder.Decode(response.RawBody)
+				if decodeErr != nil {
+					response.Error = decodeErr
+				} else {
+					response.Data = data
+				}
+			}
+		}
+
+		response.Headers = make(map[string]string)
+		resp.Header.VisitAll(func(key, value []byte) {
+			response.Headers[string(key)] = string(value)
+		})
+
+		responseChan <- response
+	})
+
+	if err != nil {
+		return &TypedResponse[Resp]{
+			Error: err,
+		}
+	}
+
+	return <-responseChan
+}
+
+// MakeJSONRequest performs a typed JSON request with automatic JSON marshaling/unmarshaling using sonic
+func MakeJSONRequest[Req, Resp any](
+	httpInstance *HttpInstnace,
+	method RequestMethod,
+	endpoint string,
+	requestData Req,
+	headers map[string]string,
+) *TypedResponse[Resp] {
+	if headers == nil {
+		headers = make(map[string]string)
+	}
+	headers["Content-Type"] = "application/json"
+	headers["Accept"] = "application/json"
+
+	config := TypedRequest[Req]{
+		Method:  method,
+		URL:     endpoint,
+		Headers: headers,
+		Data:    requestData,
+		Timeout: 30 * time.Second,
+	}
+
+	encoder := JSONRequestEncoder[Req]{}
+	decoder := JSONResponseDecoder[Resp]{}
+
+	return MakeTypedRequest(httpInstance, config, encoder, decoder)
+}
+
+// MakeTypedRequestAsync performs an asynchronous typed HTTP request
+func MakeTypedRequestAsync[Req, Resp any](
+	httpInstance *HttpInstnace,
+	config TypedRequest[Req],
+	encoder RequestEncoder[Req],
+	decoder ResponseDecoder[Resp],
+	callback func(*TypedResponse[Resp]),
+) {
+	go func() {
+		response := MakeTypedRequest(httpInstance, config, encoder, decoder)
+		if callback != nil {
+			callback(response)
+		}
+	}()
+}
+
+// MakeTypedRequestBatch performs multiple typed requests concurrently
+func MakeTypedRequestBatch[Req, Resp any](
+	httpInstance *HttpInstnace,
+	configs []TypedRequest[Req],
+	encoder RequestEncoder[Req],
+	decoder ResponseDecoder[Resp],
+) []*TypedResponse[Resp] {
+	responses := make([]*TypedResponse[Resp], len(configs))
+	var wg sync.WaitGroup
+
+	for i, config := range configs {
+		wg.Add(1)
+		go func(index int, cfg TypedRequest[Req]) {
+			defer wg.Done()
+			responses[index] = MakeTypedRequest(httpInstance, cfg, encoder, decoder)
+		}(i, config)
+	}
+
+	wg.Wait()
+	return responses
+}
+
+// ProxmoxTypedJSONRequest performs a typed Proxmox API request with JSON payload using sonic
+func ProxmoxTypedJSONRequest[Req, Resp any](
+	httpInstance *HttpInstnace,
+	method RequestMethod,
+	endpoint string,
+	requestData Req,
+) *TypedResponse[Resp] {
+	return MakeJSONRequest[Req, Resp](httpInstance, method, endpoint, requestData, nil)
+}
+
+// ConvertJSONResponse converts a regular Response to a typed response using sonic
+func ConvertJSONResponse[T any](response *Response) *TypedResponse[T] {
+	typedResponse := &TypedResponse[T]{
+		StatusCode: response.StatusCode,
+		Headers:    response.Headers,
+		RawBody:    response.Body,
+		Error:      response.Error,
+	}
+
+	if response.Error == nil && len(response.Body) > 0 {
+		var data T
+		if err := sonic.Unmarshal(response.Body, &data); err != nil {
+			typedResponse.Error = err
+		} else {
+			typedResponse.Data = data
+		}
+	}
+
+	return typedResponse
+}
+
+// MarshalToJSON marshals data to JSON using sonic for high performance
+func MarshalToJSON[T any](data T) ([]byte, error) {
+	return sonic.Marshal(data)
+}
+
+// UnmarshalFromJSON unmarshals JSON data using sonic for high performance
+func UnmarshalFromJSON[T any](data []byte) (T, error) {
+	var result T
+	err := sonic.Unmarshal(data, &result)
+	return result, err
 }
