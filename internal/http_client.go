@@ -18,7 +18,7 @@ func WithClient(client *fasthttp.Client) Option[HttpInstnace] {
 
 func NewHttpInstance(options ...Option[HttpInstnace]) *HttpInstnace {
 	connector := HttpInstnace{
-		HttpClient: CreateDefaultClient(),
+		HttpClient: createDefaultHttpClient(),
 	}
 
 	ApplyOptions(&connector, options...)
@@ -26,7 +26,7 @@ func NewHttpInstance(options ...Option[HttpInstnace]) *HttpInstnace {
 	return &connector
 }
 
-func CreateDefaultClient() *fasthttp.Client {
+func createDefaultHttpClient() *fasthttp.Client {
 	return &fasthttp.Client{
 		ReadTimeout:  30 * time.Second,
 		WriteTimeout: 10 * time.Second,
