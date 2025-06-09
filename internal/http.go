@@ -1,4 +1,4 @@
-package proxmox
+package internal
 
 import (
 	"time"
@@ -6,7 +6,7 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
-func getDefaultFastHTTPClient() *fasthttp.Client {
+func CreateDefaultHTTPClient() *fasthttp.Client {
 	return &fasthttp.Client{
 		ReadTimeout:  30 * time.Second,
 		WriteTimeout: 10 * time.Second,

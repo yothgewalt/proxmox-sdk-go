@@ -2,6 +2,8 @@ package proxmox
 
 import (
 	"github.com/valyala/fasthttp"
+
+	"yoth.dev/proxmox-sdk-go/internal"
 )
 
 type Proxmox struct {
@@ -10,7 +12,7 @@ type Proxmox struct {
 
 func New(options ...Option) *Proxmox {
 	proxmox := &Proxmox{
-		fasthttpClient: getDefaultFastHTTPClient(),
+		fasthttpClient: internal.CreateDefaultHTTPClient(),
 	}
 
 	for _, option := range options {
