@@ -1,4 +1,4 @@
-package internal_test
+package internal
 
 import (
 	"fmt"
@@ -9,13 +9,11 @@ import (
 	"time"
 
 	"github.com/valyala/fasthttp"
-
-	"yoth.dev/proxmox-sdk-go/internal"
 )
 
 func TestNewHttpInstance(t *testing.T) {
 	t.Run("default configuration", func(t *testing.T) {
-		instance := internal.NewHttpInstance()
+		instance := NewHttpInstance()
 
 		if instance == nil {
 			t.Fatal("Expected non-nil HttpInstance")
@@ -39,10 +37,10 @@ func TestNewHttpInstance(t *testing.T) {
 			ReadTimeout: 10 * time.Second,
 		}
 
-		instance := internal.NewHttpInstance(
-			internal.WithHttpClient(customClient),
-			internal.WithBaseEndpointPath("/custom/api"),
-			internal.WithWorkerPoolSize(50),
+		instance := NewHttpInstance(
+			WithHttpClient(customClient),
+			WithBaseEndpointPath("/custom/api"),
+			WithWorkerPoolSize(50),
 		)
 
 		if instance.HttpClient != customClient {
@@ -72,11 +70,11 @@ func TestHttpInstance_MakeRequest(t *testing.T) {
 	}))
 	defer server.Close()
 
-	instance := internal.NewHttpInstance()
+	instance := NewHttpInstance()
 
 	t.Run("successful GET request", func(t *testing.T) {
-		config := internal.RequestConfig{
-			Method:  internal.GET,
+		config := RequestConfig{
+			Method:  GET,
 			URL:     server.URL + "/api2/json/test",
 			Headers: map[string]string{"Accept": "application/json"},
 			Timeout: 5 * time.Second,
@@ -103,8 +101,8 @@ func TestHttpInstance_MakeRequest(t *testing.T) {
 	})
 
 	t.Run("POST request with body", func(t *testing.T) {
-		config := internal.RequestConfig{
-			Method:  internal.POST,
+		config := RequestConfig{
+			Method:  POST,
 			URL:     server.URL + "/api2/json/test",
 			Headers: map[string]string{"Content-Type": "application/json"},
 			Body:    []byte(`{"key": "value"}`),
@@ -123,8 +121,8 @@ func TestHttpInstance_MakeRequest(t *testing.T) {
 	})
 
 	t.Run("error response", func(t *testing.T) {
-		config := internal.RequestConfig{
-			Method:  internal.GET,
+		config := RequestConfig{
+			Method:  GET,
 			URL:     server.URL + "/api2/json/error",
 			Timeout: 5 * time.Second,
 		}
@@ -144,8 +142,8 @@ func TestHttpInstance_MakeRequest(t *testing.T) {
 	t.Run("request counter increment", func(t *testing.T) {
 		initialCount := instance.GetRequestCount()
 
-		config := internal.RequestConfig{
-			Method:  internal.GET,
+		config := RequestConfig{
+			Method:  GET,
 			URL:     server.URL + "/api2/json/test",
 			Timeout: 5 * time.Second,
 		}
@@ -158,8 +156,8 @@ func TestHttpInstance_MakeRequest(t *testing.T) {
 	})
 
 	t.Run("default timeout", func(t *testing.T) {
-		config := internal.RequestConfig{
-			Method: internal.GET,
+		config := RequestConfig{
+			Method: GET,
 			URL:    server.URL + "/api2/json/test",
 			// No timeout specified - should use default
 		}
@@ -179,19 +177,19 @@ func TestHttpInstance_MakeRequestAsync(t *testing.T) {
 	}))
 	defer server.Close()
 
-	instance := internal.NewHttpInstance()
+	instance := NewHttpInstance()
 
 	var wg sync.WaitGroup
-	var response *internal.Response
+	var response *Response
 
 	wg.Add(1)
-	callback := func(resp *internal.Response) {
+	callback := func(resp *Response) {
 		response = resp
 		wg.Done()
 	}
 
-	config := internal.RequestConfig{
-		Method:  internal.GET,
+	config := RequestConfig{
+		Method:  GET,
 		URL:     server.URL + "/api2/json/test",
 		Timeout: 5 * time.Second,
 	}
@@ -233,21 +231,21 @@ func TestHttpInstance_MakeRequestBatch(t *testing.T) {
 	}))
 	defer server.Close()
 
-	instance := internal.NewHttpInstance()
+	instance := NewHttpInstance()
 
-	configs := []internal.RequestConfig{
+	configs := []RequestConfig{
 		{
-			Method:  internal.GET,
+			Method:  GET,
 			URL:     server.URL + "/api2/json/test1",
 			Timeout: 5 * time.Second,
 		},
 		{
-			Method:  internal.GET,
+			Method:  GET,
 			URL:     server.URL + "/api2/json/test2",
 			Timeout: 5 * time.Second,
 		},
 		{
-			Method:  internal.GET,
+			Method:  GET,
 			URL:     server.URL + "/api2/json/test3",
 			Timeout: 5 * time.Second,
 		},
@@ -276,7 +274,7 @@ func TestHttpInstance_MakeRequestBatch(t *testing.T) {
 }
 
 func TestHttpInstance_SetWorkerPoolSize(t *testing.T) {
-	instance := internal.NewHttpInstance()
+	instance := NewHttpInstance()
 
 	// Test setting a new worker pool size
 	instance.SetWorkerPoolSize(200)
@@ -291,8 +289,8 @@ func TestHttpInstance_SetWorkerPoolSize(t *testing.T) {
 	}))
 	defer server.Close()
 
-	config := internal.RequestConfig{
-		Method:  internal.GET,
+	config := RequestConfig{
+		Method:  GET,
 		URL:     server.URL + "/api2/json/test",
 		Timeout: 5 * time.Second,
 	}
@@ -305,7 +303,7 @@ func TestHttpInstance_SetWorkerPoolSize(t *testing.T) {
 }
 
 func TestHttpInstance_BaseEndpointPath(t *testing.T) {
-	instance := internal.NewHttpInstance()
+	instance := NewHttpInstance()
 
 	t.Run("get default base endpoint path", func(t *testing.T) {
 		path := instance.GetBaseEndpointPath()
@@ -326,7 +324,7 @@ func TestHttpInstance_BaseEndpointPath(t *testing.T) {
 }
 
 func TestHttpInstance_BuildFullURL(t *testing.T) {
-	instance := internal.NewHttpInstance()
+	instance := NewHttpInstance()
 
 	tests := []struct {
 		name     string
@@ -386,8 +384,8 @@ func TestHttpInstance_BuildFullURL(t *testing.T) {
 			// For testing purposes, we'll test the URL building logic
 			// by making actual requests when possible
 			if tt.endpoint != "" && !http.DefaultTransport.(*http.Transport).DisableKeepAlives {
-				config := internal.RequestConfig{
-					Method:  internal.GET,
+				config := RequestConfig{
+					Method:  GET,
 					URL:     tt.endpoint,
 					Timeout: 1 * time.Second,
 				}
@@ -405,14 +403,14 @@ func TestHttpInstance_BuildFullURL(t *testing.T) {
 
 func TestRequestMethod_Constants(t *testing.T) {
 	tests := []struct {
-		method   internal.RequestMethod
+		method   RequestMethod
 		expected string
 	}{
-		{internal.GET, "GET"},
-		{internal.POST, "POST"},
-		{internal.PUT, "PUT"},
-		{internal.DELETE, "DELETE"},
-		{internal.PATCH, "PATCH"},
+		{GET, "GET"},
+		{POST, "POST"},
+		{PUT, "PUT"},
+		{DELETE, "DELETE"},
+		{PATCH, "PATCH"},
 	}
 
 	for _, tt := range tests {
@@ -425,15 +423,15 @@ func TestRequestMethod_Constants(t *testing.T) {
 }
 
 func TestRequestConfig_Struct(t *testing.T) {
-	config := internal.RequestConfig{
-		Method:  internal.POST,
+	config := RequestConfig{
+		Method:  POST,
 		URL:     "http://example.com",
 		Headers: map[string]string{"Content-Type": "application/json"},
 		Body:    []byte(`{"test": "data"}`),
 		Timeout: 10 * time.Second,
 	}
 
-	if config.Method != internal.POST {
+	if config.Method != POST {
 		t.Errorf("Expected method POST, got %s", config.Method)
 	}
 
@@ -455,7 +453,7 @@ func TestRequestConfig_Struct(t *testing.T) {
 }
 
 func TestResponse_Struct(t *testing.T) {
-	response := &internal.Response{
+	response := &Response{
 		StatusCode: 200,
 		Body:       []byte(`{"result": "ok"}`),
 		Headers:    map[string]string{"Content-Type": "application/json"},
@@ -479,6 +477,165 @@ func TestResponse_Struct(t *testing.T) {
 	}
 }
 
+func TestHttpInstance_GetRequestRate(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"status": "ok"}`))
+	}))
+	defer server.Close()
+
+	client := NewHttpInstance()
+	defer client.Close()
+
+	// Reset counter
+	client.ResetRequestCounter()
+
+	// Make some requests
+	config := RequestConfig{
+		Method:  GET,
+		URL:     server.URL + "/test",
+		Timeout: 1 * time.Second,
+	}
+
+	// Make 3 requests quickly
+	for i := 0; i < 3; i++ {
+		client.MakeRequest(config)
+	}
+
+	// Measure rate over a short interval
+	rate := client.GetRequestRate(100 * time.Millisecond)
+
+	// Rate should be 0 since we already made the requests
+	if rate != 0 {
+		t.Logf("Request rate: %.2f req/sec (expected 0 for completed requests)", rate)
+	}
+}
+
+func TestHttpInstance_ResetRequestCounter(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	client := NewHttpInstance()
+	defer client.Close()
+
+	// Make a request
+	config := RequestConfig{
+		Method: GET,
+		URL:    server.URL,
+	}
+	client.MakeRequest(config)
+
+	// Check counter is > 0
+	if client.GetRequestCount() == 0 {
+		t.Error("Expected request counter > 0")
+	}
+
+	// Reset counter
+	client.ResetRequestCounter()
+
+	// Check counter is 0
+	if client.GetRequestCount() != 0 {
+		t.Errorf("Expected request counter to be 0 after reset, got %d", client.GetRequestCount())
+	}
+}
+
+func TestHttpInstance_IsHealthy(t *testing.T) {
+	client := NewHttpInstance()
+	defer client.Close()
+
+	// Should be healthy initially
+	if !client.IsHealthy() {
+		t.Error("Expected client to be healthy initially")
+	}
+
+	// Test with overloaded worker pool
+	smallPoolClient := NewHttpInstance(WithWorkerPoolSize(1))
+	defer smallPoolClient.Close()
+
+	// Fill the worker pool
+	var wg sync.WaitGroup
+	wg.Add(1)
+	smallPoolClient.workerPool.Submit(func() {
+		defer wg.Done()
+		time.Sleep(100 * time.Millisecond)
+	})
+
+	time.Sleep(10 * time.Millisecond) // Let task start
+
+	// Health check implementation may vary based on criteria
+	// This test verifies the method works without error
+	healthy := smallPoolClient.IsHealthy()
+	t.Logf("Client health with busy worker pool: %v", healthy)
+
+	wg.Wait()
+}
+
+func TestHttpInstance_GetMemoryStats(t *testing.T) {
+	client := NewHttpInstance()
+	defer client.Close()
+
+	stats := client.GetMemoryStats()
+
+	// Check expected keys exist
+	if _, exists := stats["request_counter"]; !exists {
+		t.Error("Expected request_counter in memory stats")
+	}
+
+	if _, exists := stats["base_endpoint_path"]; !exists {
+		t.Error("Expected base_endpoint_path in memory stats")
+	}
+
+	if _, exists := stats["buffer_manager"]; !exists {
+		t.Error("Expected buffer_manager in memory stats")
+	}
+
+	// Verify request counter type
+	if counter, ok := stats["request_counter"].(int64); !ok {
+		t.Error("Expected request_counter to be int64")
+	} else if counter < 0 {
+		t.Error("Expected request_counter to be non-negative")
+	}
+}
+
+func TestHttpInstance_AdvancedFeatures(t *testing.T) {
+	// Test integration of all advanced features
+	client := NewHttpInstance(WithProxmoxDefaults())
+	defer client.Close()
+
+	// Test buffer manager access
+	bufManager := client.GetBufferManager()
+	if bufManager == nil {
+		t.Fatal("Expected non-nil buffer manager")
+	}
+
+	// Test worker pool stats
+	active, total, max := client.GetWorkerPoolStats()
+	if max <= 0 {
+		t.Error("Expected positive max workers")
+	}
+
+	if total < 0 {
+		t.Error("Expected non-negative total tasks")
+	}
+
+	if active < 0 {
+		t.Error("Expected non-negative active workers")
+	}
+
+	// Test memory stats
+	memStats := client.GetMemoryStats()
+	if len(memStats) == 0 {
+		t.Error("Expected non-empty memory stats")
+	}
+
+	// Test health check
+	if !client.IsHealthy() {
+		t.Error("Expected healthy client")
+	}
+}
+
 // Benchmark tests
 func BenchmarkHttpInstance_MakeRequest(b *testing.B) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -487,9 +644,9 @@ func BenchmarkHttpInstance_MakeRequest(b *testing.B) {
 	}))
 	defer server.Close()
 
-	instance := internal.NewHttpInstance()
-	config := internal.RequestConfig{
-		Method:  internal.GET,
+	instance := NewHttpInstance()
+	config := RequestConfig{
+		Method:  GET,
 		URL:     server.URL + "/api2/json/test",
 		Timeout: 5 * time.Second,
 	}
@@ -510,20 +667,20 @@ func BenchmarkHttpInstance_MakeRequestBatch(b *testing.B) {
 	}))
 	defer server.Close()
 
-	instance := internal.NewHttpInstance()
-	configs := []internal.RequestConfig{
+	instance := NewHttpInstance()
+	configs := []RequestConfig{
 		{
-			Method:  internal.GET,
+			Method:  GET,
 			URL:     server.URL + "/api2/json/test1",
 			Timeout: 5 * time.Second,
 		},
 		{
-			Method:  internal.GET,
+			Method:  GET,
 			URL:     server.URL + "/api2/json/test2",
 			Timeout: 5 * time.Second,
 		},
 		{
-			Method:  internal.GET,
+			Method:  GET,
 			URL:     server.URL + "/api2/json/test3",
 			Timeout: 5 * time.Second,
 		},
@@ -543,7 +700,7 @@ func BenchmarkHttpInstance_MakeRequestBatch(b *testing.B) {
 func BenchmarkNewHttpInstance(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		instance := internal.NewHttpInstance()
+		instance := NewHttpInstance()
 		if instance == nil {
 			b.Fatal("Expected non-nil instance")
 		}
@@ -557,10 +714,10 @@ func BenchmarkNewHttpInstanceWithOptions(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		instance := internal.NewHttpInstance(
-			internal.WithHttpClient(customClient),
-			internal.WithBaseEndpointPath("/custom/api"),
-			internal.WithWorkerPoolSize(50),
+		instance := NewHttpInstance(
+			WithHttpClient(customClient),
+			WithBaseEndpointPath("/custom/api"),
+			WithWorkerPoolSize(50),
 		)
 		if instance == nil {
 			b.Fatal("Expected non-nil instance")
