@@ -154,7 +154,6 @@ func (h *HttpInstnace) MakeRequest(config RequestConfig) *Response {
 		}
 	}
 
-	// Wait for the response
 	return <-responseChan
 }
 
