@@ -9,19 +9,23 @@ import (
 type Proxmox interface{}
 
 type proxmoxDependency struct {
-	httpClient *fasthttp.Client
+	httpInstance *internal.HttpInstnace
 }
 
-func New(options ...option) Proxmox {
-	defaultHttpClient := internal.CreateDefaultClient()
+func New(options ...internal.Option[proxmoxDependency]) Proxmox {
+	defaultHttpInstance := internal.NewHttpInstance()
 
 	proxmox := proxmoxDependency{
-		httpClient: defaultHttpClient,
+		httpInstance: defaultHttpInstance,
 	}
 
-	for _, option := range options {
-		option.apply(&proxmox)
-	}
+	internal.ApplyOptions(&proxmox, options...)
 
 	return &proxmox
+}
+
+func WithHTTPClient(c *fasthttp.Client) internal.Option[proxmoxDependency] {
+	return internal.OptionFunc[proxmoxDependency](func(p *proxmoxDependency) {
+		p.httpInstance = internal.NewHttpInstance(internal.WithClient(c))
+	})
 }

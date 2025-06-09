@@ -6,34 +6,22 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
-type connectorOption interface {
-	apply(*Connector)
+type HttpInstnace struct {
+	HttpClient *fasthttp.Client
 }
 
-type optionFunc func(*Connector)
-
-func (f optionFunc) apply(c *Connector) {
-	f(c)
-}
-
-func WithClient(client *fasthttp.Client) connectorOption {
-	return optionFunc(func(c *Connector) {
-		c.Client = client
+func WithClient(client *fasthttp.Client) Option[HttpInstnace] {
+	return OptionFunc[HttpInstnace](func(c *HttpInstnace) {
+		c.HttpClient = client
 	})
 }
 
-type Connector struct {
-	Client *fasthttp.Client
-}
-
-func NewConnector(options ...connectorOption) *Connector {
-	connector := Connector{
-		Client: CreateDefaultClient(),
+func NewHttpInstance(options ...Option[HttpInstnace]) *HttpInstnace {
+	connector := HttpInstnace{
+		HttpClient: CreateDefaultClient(),
 	}
 
-	for _, option := range options {
-		option.apply(&connector)
-	}
+	ApplyOptions(&connector, options...)
 
 	return &connector
 }
