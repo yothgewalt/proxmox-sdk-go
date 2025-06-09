@@ -15,3 +15,10 @@ func WithWorkerPoolSize(size int) Option[HttpInstnace] {
 		c.workerPool = make(chan struct{}, size)
 	})
 }
+
+// WithBaseEndpointPath sets a custom base endpoint path for the HttpInstance
+func WithBaseEndpointPath(basePath string) Option[HttpInstnace] {
+	return OptionFunc[HttpInstnace](func(c *HttpInstnace) {
+		c.baseEndpointPath = basePath
+	})
+}

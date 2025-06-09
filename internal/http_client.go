@@ -1,6 +1,8 @@
 package internal
 
 import (
+	"path"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -50,6 +52,10 @@ type HttpInstnace struct {
 
 	// Request counter for monitoring and rate limiting
 	requestCounter int64
+
+	// Base endpoint path for API requests
+	// Reason: Provides consistent API path management and allows customization
+	baseEndpointPath string
 }
 
 // NewHttpInstance creates a new instance of HttpInstnace with default settings
@@ -57,6 +63,8 @@ func NewHttpInstance(options ...Option[HttpInstnace]) *HttpInstnace {
 	connector := HttpInstnace{
 		HttpClient: createDefaultHttpClient(),
 		workerPool: make(chan struct{}, 100),
+		// Default base endpoint path for Proxmox API
+		baseEndpointPath: "/api2/json",
 
 		requestPool: sync.Pool{
 			New: func() interface{} {
@@ -92,7 +100,8 @@ func (h *HttpInstnace) MakeRequest(config RequestConfig) *Response {
 		h.responsePool.Put(resp)
 	}()
 
-	req.SetRequestURI(config.URL)
+	fullURL := h.buildFullURL(config.URL)
+	req.SetRequestURI(fullURL)
 	req.Header.SetMethod(string(config.Method))
 
 	for key, value := range config.Headers {
@@ -168,6 +177,38 @@ func (h *HttpInstnace) MakeRequestBatch(configs []RequestConfig) []*Response {
 
 	wg.Wait()
 	return responses
+}
+
+// buildFullURL constructs the complete URL by combining base endpoint path with the given endpoint
+func (h *HttpInstnace) buildFullURL(endpoint string) string {
+	// Handle cases where endpoint might already be a full URL
+	if strings.HasPrefix(endpoint, "http://") || strings.HasPrefix(endpoint, "https://") {
+		return endpoint
+	}
+
+	// Clean and join paths to avoid double slashes
+	cleanBasePath := strings.TrimSuffix(h.baseEndpointPath, "/")
+	cleanEndpoint := strings.TrimPrefix(endpoint, "/")
+
+	if cleanEndpoint == "" {
+		return cleanBasePath
+	}
+
+	return path.Join(cleanBasePath, cleanEndpoint)
+}
+
+// GetBaseEndpointPath returns the current base endpoint path
+func (h *HttpInstnace) GetBaseEndpointPath() string {
+	h.mutex.RLock()
+	defer h.mutex.RUnlock()
+	return h.baseEndpointPath
+}
+
+// SetBaseEndpointPath updates the base endpoint path dynamically
+func (h *HttpInstnace) SetBaseEndpointPath(basePath string) {
+	h.mutex.Lock()
+	defer h.mutex.Unlock()
+	h.baseEndpointPath = basePath
 }
 
 func createDefaultHttpClient() *fasthttp.Client {
