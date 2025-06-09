@@ -1,6 +1,7 @@
 package internal_test
 
 import (
+	"sync"
 	"testing"
 	"time"
 
@@ -213,9 +214,12 @@ func TestConcurrentOptionApplication(t *testing.T) {
 
 	// Create multiple instances concurrently with the same options
 	instances := make([]*internal.HttpInstnace, 10)
+	var wg sync.WaitGroup
 
 	for i := 0; i < 10; i++ {
+		wg.Add(1)
 		go func(index int) {
+			defer wg.Done()
 			instances[index] = internal.NewHttpInstance(
 				internal.WithHttpClient(customClient),
 				internal.WithBaseEndpointPath("/concurrent/api"),
@@ -224,8 +228,8 @@ func TestConcurrentOptionApplication(t *testing.T) {
 		}(i)
 	}
 
-	// Give goroutines time to complete
-	time.Sleep(100 * time.Millisecond)
+	// Wait for all goroutines to complete
+	wg.Wait()
 
 	// Verify all instances were created correctly
 	for i, instance := range instances {
