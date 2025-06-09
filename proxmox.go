@@ -1,8 +1,6 @@
 package proxmox
 
 import (
-	"github.com/valyala/fasthttp"
-
 	"yoth.dev/proxmox-sdk-go/internal"
 )
 
@@ -22,10 +20,4 @@ func New(options ...internal.Option[proxmoxDependency]) Proxmox {
 	internal.ApplyOptions(&proxmox, options...)
 
 	return &proxmox
-}
-
-func WithHTTPClient(c *fasthttp.Client) internal.Option[proxmoxDependency] {
-	return internal.OptionFunc[proxmoxDependency](func(p *proxmoxDependency) {
-		p.httpInstance = internal.NewHttpInstance(internal.WithHttpClient(c))
-	})
 }
