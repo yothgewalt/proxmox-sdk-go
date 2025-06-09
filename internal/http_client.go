@@ -10,7 +10,7 @@ type HttpInstnace struct {
 	HttpClient *fasthttp.Client
 }
 
-func WithClient(client *fasthttp.Client) Option[HttpInstnace] {
+func WithHttpClient(client *fasthttp.Client) Option[HttpInstnace] {
 	return OptionFunc[HttpInstnace](func(c *HttpInstnace) {
 		c.HttpClient = client
 	})

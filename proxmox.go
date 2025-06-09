@@ -26,6 +26,6 @@ func New(options ...internal.Option[proxmoxDependency]) Proxmox {
 
 func WithHTTPClient(c *fasthttp.Client) internal.Option[proxmoxDependency] {
 	return internal.OptionFunc[proxmoxDependency](func(p *proxmoxDependency) {
-		p.httpInstance = internal.NewHttpInstance(internal.WithClient(c))
+		p.httpInstance = internal.NewHttpInstance(internal.WithHttpClient(c))
 	})
 }
