@@ -54,7 +54,6 @@ type HttpInstnace struct {
 	requestCounter int64
 
 	// Base endpoint path for API requests
-	// Reason: Provides consistent API path management and allows customization
 	baseEndpointPath string
 }
 
