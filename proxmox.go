@@ -12,7 +12,7 @@ type proxmoxDependency struct {
 	httpClient *fasthttp.Client
 }
 
-func New(options ...Option) Proxmox {
+func New(options ...option) Proxmox {
 	proxmox := proxmoxDependency{
 		httpClient: internal.CreateDefaultHTTPClient(),
 	}

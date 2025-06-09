@@ -4,7 +4,7 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
-type Option interface {
+type option interface {
 	apply(*proxmoxDependency)
 }
 
@@ -14,7 +14,7 @@ func (f optionFunc) apply(p *proxmoxDependency) {
 	f(p)
 }
 
-func WithHTTPClient(c *fasthttp.Client) Option {
+func WithHTTPClient(c *fasthttp.Client) option {
 	return optionFunc(func(p *proxmoxDependency) {
 		p.httpClient = c
 	})
