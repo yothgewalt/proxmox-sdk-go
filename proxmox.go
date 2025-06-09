@@ -13,8 +13,10 @@ type proxmoxDependency struct {
 }
 
 func New(options ...option) Proxmox {
+	defaultHttpClient := internal.CreateDefaultClient()
+
 	proxmox := proxmoxDependency{
-		httpClient: internal.CreateDefaultHTTPClient(),
+		httpClient: defaultHttpClient,
 	}
 
 	for _, option := range options {
