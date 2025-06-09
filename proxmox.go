@@ -6,18 +6,20 @@ import (
 	"yoth.dev/proxmox-sdk-go/internal"
 )
 
-type Proxmox struct {
-	fasthttpClient *fasthttp.Client
+type Proxmox interface{}
+
+type proxmoxDependency struct {
+	httpClient *fasthttp.Client
 }
 
-func New(options ...Option) *Proxmox {
-	proxmox := &Proxmox{
-		fasthttpClient: internal.CreateDefaultHTTPClient(),
+func New(options ...Option) Proxmox {
+	proxmox := proxmoxDependency{
+		httpClient: internal.CreateDefaultHTTPClient(),
 	}
 
 	for _, option := range options {
-		option.apply(proxmox)
+		option.apply(&proxmox)
 	}
 
-	return proxmox
+	return &proxmox
 }

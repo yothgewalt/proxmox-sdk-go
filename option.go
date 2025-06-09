@@ -5,17 +5,17 @@ import (
 )
 
 type Option interface {
-	apply(*Proxmox)
+	apply(*proxmoxDependency)
 }
 
-type optionFunc func(*Proxmox)
+type optionFunc func(*proxmoxDependency)
 
-func (f optionFunc) apply(p *Proxmox) {
+func (f optionFunc) apply(p *proxmoxDependency) {
 	f(p)
 }
 
-func WithFastHTTPClient(c *fasthttp.Client) Option {
-	return optionFunc(func(p *Proxmox) {
-		p.fasthttpClient = c
+func WithHTTPClient(c *fasthttp.Client) Option {
+	return optionFunc(func(p *proxmoxDependency) {
+		p.httpClient = c
 	})
 }
